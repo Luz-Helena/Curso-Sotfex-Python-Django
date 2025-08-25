@@ -12,6 +12,5 @@ while True:
     elif posicao == 4:
         print('Desligar')
         break
-
     else:
         print('Comando invalido')
