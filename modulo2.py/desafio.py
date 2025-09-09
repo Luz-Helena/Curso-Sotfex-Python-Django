@@ -9,7 +9,7 @@ while usuario != 'parar':
     except:
         print("Duração inválida. Por favor, insira um número inteiro.")
         continue
-    if(status == '1'):
+    if status == '1':
         registros_acessos = [(usuario, status, duracao_minutos)]
 
 print(f"Registro de acesso bem-sucedido: {registros_acessos}")
