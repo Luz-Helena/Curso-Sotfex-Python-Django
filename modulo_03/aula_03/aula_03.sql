@@ -1,3 +1,4 @@
+-- Active: 1759773230447@@127.0.0.1@3306
 CREATE TABLE autores (
     id_autor INT PRIMARY KEY,
     nome VARCHAR(100),
