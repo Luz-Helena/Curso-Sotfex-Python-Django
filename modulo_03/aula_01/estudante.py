@@ -12,5 +12,5 @@ características da classe Pessoa.
 ● Crie um método "setter" para adicionar notas a uma matéria específica. 
 Um "setter" é uma forma de definir ou alterar uma informação dentro do objeto.
 '''
-from pessoa import Pessoa
+from modulo_03.aula_01.pessoa import Pessoa
 
