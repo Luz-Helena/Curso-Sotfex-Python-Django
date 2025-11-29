@@ -1,25 +1,82 @@
 from django.shortcuts import render, redirect, get_object_or_404 
-from django.http import HttpResponse 
+from django.http import HttpResponse
+from django.contrib.auth.forms import UserCreationForm 
+from django.contrib.auth import login 
+from .models import Tarefa
+from .forms import TarefaForm
+from django.contrib.auth.decorators import login_required
 
 # Create your views here.
+@login_required
+def home(request):
+    # 3. Lógica de POST: Se o formulário foi enviado
+    if request.method == 'POST':
+        # Cria uma instância do form e preenche com os dados do POST
+        form = TarefaForm(request.POST)
+        if form.is_valid():
+            # MUDANÇA 1: Salvando com o usuário
+            #
+            # 'commit=False' cría o objeto na memória, mas não salva no banco.
+            tarefa = form.save(commit=False)
+            # Atribui o usuário logado (request.user) ao campo 'user' da tarefa
+            tarefa.user = request.user
+            # Agora sim, salva o objeto completo no banco
+            tarefa.save()
+            return redirect('home')
+    else:
+        form = TarefaForm() # Cria um formulário vazio
+        # 8. A busca de dados (fora dos 'ifs', pois é necessária sempre)
 
-def home(request): 
-    # Vamos retornar a resposta HTTP mais simples: um texto HTML 
-    return HttpResponse("<h1>Olá, Mundo! Esta é minha primeira página Django!</h1>")
+    todas_as_tarefas = Tarefa.objects.filter(user=request.user).order_by('-criada_em')
+    context = {
+    'nome_usuario':  request.user.username,
+    'tecnologias': ['Autenticação', 'ForeignKey', 'Login'],
+    'tarefas': todas_as_tarefas,
+    'form': form, # 10. Envie o 'form' (vazio ou com erros) para o template
+    }
+    return render(request, 'home.html', context)
 
-def home2(request): 
-    # Vamos retornar a resposta HTTP mais simples: um texto HTML 
-    return HttpResponse("<h1>Olá, Mundo! Esta é minha primeira página Django!</h1>")
+@login_required    
+def editar_tarefa(request, id):
+    tarefa = get_object_or_404(Tarefa, id=id, user=request.user)
 
-def concluir_tarefa(request, pk):
-    tarefa = get_object_or_404(Tarefa, pk=pk)
-    if request.method == 'POST': 
-        tarefa.concluida = True 
-        tarefa.save() 
+    if request.method == 'POST':
+        form = TarefaForm(request.POST, instance=tarefa)
+        if form.is_valid():
+            form.save()
+            return redirect('home')
+    else:
+        form = TarefaForm(instance=tarefa)
+
+    return render(request, 'editar_tarefa.html', {'form': form, 'tarefa': tarefa})  
+
+@login_required
+def excluir_tarefa(request, id):
+    tarefa = get_object_or_404(Tarefa, id=id, user=request.user)
+    tarefa.delete()
     return redirect('home')
 
-def deletar_tarefa(request, pk): 
-    tarefa = get_object_or_404(Tarefa, pk=pk)
-    if request.method == 'POST': 
-        tarefa.delete() 
-    return redirect('home') 
+@login_required
+def alternar_tarefa(request, id):
+    tarefa = get_object_or_404(Tarefa, id=id, user=request.user)
+    tarefa.concluida = not tarefa.concluida  # inverte o valor atual
+    tarefa.save()
+    return redirect('home')
+
+def register(request):
+    # Se a requisição for POST, o usuário enviou o formulário
+    if request.method == 'POST':
+        # Cria uma instância do formulário com os dados enviados
+        form = UserCreationForm(request.POST)
+        # Verifica se o formulário é válido (ex: senhas batem, username não existe)
+        if form.is_valid():
+            user = form.save() # Salva o novo usuário no banco
+            login(request, user) # Faz o login automático do usuário
+            return redirect('home') # Redireciona para a home
+
+    else:
+        form = UserCreationForm() # Cria um formulário de cadastro vazio
+
+        # Prepara o contexto e renderiza o template
+        context = {'form': form}
+        return render(request, 'register.html', context)
