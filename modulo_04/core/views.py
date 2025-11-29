@@ -1,7 +1,7 @@
-from django.shortcuts import render, redirect, get_object_or_404 
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
-from django.contrib.auth.forms import UserCreationForm 
-from django.contrib.auth import login 
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
 from .models import Tarefa
 from .forms import TarefaForm
 from django.contrib.auth.decorators import login_required
@@ -12,7 +12,7 @@ def home(request):
     # 3. Lógica de POST: Se o formulário foi enviado
     if request.method == 'POST':
         # Cria uma instância do form e preenche com os dados do POST
-        form = TarefaForm(request.POST)
+        form = TarefaForm(request.POST, user=request.user)
         if form.is_valid():
             # MUDANÇA 1: Salvando com o usuário
             #
@@ -24,37 +24,42 @@ def home(request):
             tarefa.save()
             return redirect('home')
     else:
-        form = TarefaForm() # Cria um formulário vazio
+        form = TarefaForm(user=request.user)  # Cria um formulário vazio
         # 8. A busca de dados (fora dos 'ifs', pois é necessária sempre)
 
-    todas_as_tarefas = Tarefa.objects.filter(user=request.user).order_by('-criada_em')
+    todas_as_tarefas = Tarefa.objects.filter(
+        user=request.user).order_by('-criada_em')
     context = {
-    'nome_usuario':  request.user.username,
-    'tecnologias': ['Autenticação', 'ForeignKey', 'Login'],
-    'tarefas': todas_as_tarefas,
-    'form': form, # 10. Envie o 'form' (vazio ou com erros) para o template
+        'nome_usuario':  request.user.username,
+        'tecnologias': ['Autenticação', 'ForeignKey', 'Login'],
+        'tarefas': todas_as_tarefas,
+        # 10. Envie o 'form' (vazio ou com erros) para o template
+        'form': form,
     }
     return render(request, 'home.html', context)
 
-@login_required    
+
+@login_required
 def editar_tarefa(request, id):
     tarefa = get_object_or_404(Tarefa, id=id, user=request.user)
 
     if request.method == 'POST':
-        form = TarefaForm(request.POST, instance=tarefa)
+        form = TarefaForm(request.POST, instance=tarefa, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('home')
     else:
-        form = TarefaForm(instance=tarefa)
+        form = TarefaForm(instance=tarefa, user=request.user)
 
-    return render(request, 'editar_tarefa.html', {'form': form, 'tarefa': tarefa})  
+    return render(request, 'editar_tarefa.html', {'form': form, 'tarefa': tarefa})
+
 
 @login_required
 def excluir_tarefa(request, id):
     tarefa = get_object_or_404(Tarefa, id=id, user=request.user)
     tarefa.delete()
     return redirect('home')
+
 
 @login_required
 def alternar_tarefa(request, id):
@@ -63,6 +68,7 @@ def alternar_tarefa(request, id):
     tarefa.save()
     return redirect('home')
 
+
 def register(request):
     # Se a requisição for POST, o usuário enviou o formulário
     if request.method == 'POST':
@@ -70,12 +76,15 @@ def register(request):
         form = UserCreationForm(request.POST)
         # Verifica se o formulário é válido (ex: senhas batem, username não existe)
         if form.is_valid():
-            user = form.save() # Salva o novo usuário no banco
-            login(request, user) # Faz o login automático do usuário
-            return redirect('home') # Redireciona para a home
-
+            user = form.save()  # Salva o novo usuário no banco
+            login(request, user)  # Faz o login automático do usuário
+            return redirect('home')  # Redireciona para a home
+        else:
+            # Caso o formulário seja inválido, ele será mostrado novamente com os erros
+            # Mostra o formulário com erros
+            return render(request, 'register.html', {'form': form})
     else:
-        form = UserCreationForm() # Cria um formulário de cadastro vazio
+        form = UserCreationForm()  # Cria um formulário de cadastro vazio
 
         # Prepara o contexto e renderiza o template
         context = {'form': form}
