@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Tarefa
 from .serializers import TarefaSerializer
+from django.db.models import Count, Q
 
 class ListaTarefasAPIView(APIView):
 
@@ -32,4 +33,22 @@ class ListaTarefasAPIView(APIView):
         serializer.errors,
         status=status.HTTP_400_BAD_REQUEST
         )
-    
+
+class TarefaEstatisticasView(APIView):
+    def get(self, request, format=None):
+        tarefas_agregadas = Tarefa.objects.aggregate()
+        
+        total = tarefas_agregadas['total']
+        concluidas = tarefas_agregadas['concluidas']
+        pendentes = tarefas_agregadas['pendentes']
+        
+        taxa_conclusao = (concluidas / total)
+        
+        data = {
+            "total": total,
+            "concluidas": concluidas,
+            "pendentes": pendentes,
+            "taxa_conclusao": round(taxa_conclusao, 2)
+        }
+        
+        return Response(data, status=status.HTTP_200_OK)
