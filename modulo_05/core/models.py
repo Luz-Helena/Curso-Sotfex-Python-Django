@@ -14,6 +14,7 @@ class Tarefa(models.Model):
     concluida = models.BooleanField(default=False, verbose_name='Concluída')
     criada_em = models.DateTimeField(auto_now_add=True, verbose_name='Criada em')
     prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media')
+    data_conclusao = models.DateTimeField(null=True, blank=True, verbose_name='Data de conclusão')
 
     class Meta:
         verbose_name = 'Tarefa'

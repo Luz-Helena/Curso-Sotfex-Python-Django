@@ -2,13 +2,18 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Tarefa
-from .serializers import TarefaSerializer
+
 from django.db.models import Count, Q
-from rest_framework.permissions import IsAuthenticated
+
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from datetime import date
+from rest_framework import generics
+from django.contrib.auth.models import User
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .serializers import TarefaSerializer, UserRegistrationSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class ListaTarefasAPIView(APIView):
@@ -16,7 +21,8 @@ class ListaTarefasAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, format=None):
-        tarefas = Tarefa.objects.all()
+        user = self.request.user
+        tarefas = Tarefa.objects.filter(user=user)
         serializer = TarefaSerializer(tarefas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -79,16 +85,6 @@ class TarefaDuplicarAPIView(APIView):
         serializer = TarefaSerializer(nova_tarefa)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
-class TarefaConcluirTodasAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, format=None):
-        tarefas = Tarefa.objects.filter(user=request.user, concluida=False)
-        tarefas.update(concluida=True, concluido_em=timezone.now())
-        return Response({'detail': f'{tarefas.count()} tarefas concluídas.'}, status=status.HTTP_200_OK)
-
-
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -134,22 +130,8 @@ class StatsView(APIView):
             "taxa_conclusao": round(taxa_conclusao, 2)
         })
 
-
-class TarefaDuplicarAPIView(APIView):
-    def post(self, request, pk):
-        tarefa_original = get_object_or_404(Tarefa, pk=pk)
-
-        nova_tarefa = Tarefa.objects.create(
-            titulo=tarefa_original.titulo + " (cópia)",
-            concluida=False,
-            data_conclusao=None
-        )
-
-        serializer = TarefaSerializer(nova_tarefa)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 class TarefasConcluirTodasAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     def patch(self, request):
         hoje = date.today()
 
@@ -163,6 +145,7 @@ class TarefasConcluirTodasAPIView(APIView):
 
 class TarefaDetalheAPIView(APIView):
 
+    permission_classes = [IsAuthenticated]
     def get_object(self, pk):
         return get_object_or_404(Tarefa, pk=pk)
 
@@ -208,3 +191,31 @@ class TarefaDetalheAPIView(APIView):
         tarefa = self.get_object(pk)
         tarefa.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response(
+                {"detail": "Logout realizado com sucesso."},
+                status=status.HTTP_205_RESET_CONTENT,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Token inválido."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class RegisterView(generics.CreateAPIView):
+    """
+    Endpoint para cadastro de novos usuários.
+    Acesso: Público (Qualquer um pode criar conta).
+    """
+    queryset = User.objects.all()
+    permission_classes = [AllowAny]  # Sobrescreve o padrão global
+    serializer_class = UserRegistrationSerializer
